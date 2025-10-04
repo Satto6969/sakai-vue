@@ -5,7 +5,8 @@ const layoutConfig = reactive({
     primary: 'emerald',
     surface: null,
     darkTheme: false,
-    menuMode: 'static'
+    menuMode: 'static',
+    isRTL: false
 });
 
 const layoutState = reactive({
@@ -17,6 +18,12 @@ const layoutState = reactive({
     menuHoverActive: false,
     activeMenuItem: null
 });
+
+// Initialize RTL support
+const initializeDirection = () => {
+    document.documentElement.setAttribute('dir', layoutConfig.isRTL ? 'rtl' : 'ltr');
+    document.documentElement.classList.toggle('rtl', layoutConfig.isRTL);
+};
 
 export function useLayout() {
     const setActiveMenuItem = (item) => {
@@ -38,6 +45,12 @@ export function useLayout() {
         document.documentElement.classList.toggle('app-dark');
     };
 
+    const toggleDirection = () => {
+        layoutConfig.isRTL = !layoutConfig.isRTL;
+        document.documentElement.setAttribute('dir', layoutConfig.isRTL ? 'rtl' : 'ltr');
+        document.documentElement.classList.toggle('rtl', layoutConfig.isRTL);
+    };
+
     const toggleMenu = () => {
         if (layoutConfig.menuMode === 'overlay') {
             layoutState.overlayMenuActive = !layoutState.overlayMenuActive;
@@ -54,9 +67,14 @@ export function useLayout() {
 
     const isDarkTheme = computed(() => layoutConfig.darkTheme);
 
+    const isRTL = computed(() => layoutConfig.isRTL);
+
     const getPrimary = computed(() => layoutConfig.primary);
 
     const getSurface = computed(() => layoutConfig.surface);
+
+    // Initialize direction on creation
+    initializeDirection();
 
     return {
         layoutConfig,
@@ -64,9 +82,12 @@ export function useLayout() {
         toggleMenu,
         isSidebarActive,
         isDarkTheme,
+        isRTL,
         getPrimary,
-        getSurface,
+        getSurface, 
         setActiveMenuItem,
-        toggleDarkMode
+        toggleDarkMode,
+        toggleDirection,
+        initializeDirection
     };
 }

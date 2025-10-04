@@ -1,10 +1,105 @@
 <script setup>
 import FloatingConfigurator from '@/components/FloatingConfigurator.vue';
+import { useToastInjection } from '@/composables/useToastInjection.js';
+import { useAuthStore } from '@/store/auth.js';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const authStore = useAuthStore();
+const toast = useToastInjection(); // This ensures toast service is injected into API service
+const router = useRouter();
 
 const email = ref('');
 const password = ref('');
 const checked = ref(false);
+const showSignup = ref(false);
+
+// Signup form fields
+const signupName = ref('');
+const signupEmail = ref('');
+const signupPassword = ref('');
+const confirmPassword = ref('');
+
+// Handle login
+const handleLogin = async () => {
+    if (!email.value || !password.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Validation Error',
+            detail: 'Please enter both email and password',
+            life: 3000
+        });
+        return;
+    }
+
+    const result = await authStore.login({
+        email: email.value,
+        password: password.value
+    });
+
+    if (result.success) {
+        // Navigate immediately - toast will remain visible
+        router.push('/');
+    }
+    // Error toast is handled automatically by API service
+};
+
+// Handle signup
+const handleSignup = async () => {
+    // Validation
+    if (!signupName.value || !signupEmail.value || !signupPassword.value || !confirmPassword.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Validation Error',
+            detail: 'Please fill in all fields',
+            life: 3000
+        });
+        return;
+    }
+
+    if (signupPassword.value !== confirmPassword.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Validation Error',
+            detail: 'Passwords do not match',
+            life: 3000
+        });
+        return;
+    }
+
+    const result = await authStore.signup({
+        name: signupName.value,
+        email: signupEmail.value,
+        password: signupPassword.value,
+        confirmPassword: confirmPassword.value
+    });
+
+    if (result.success) {
+        if (result.requiresLogin) {
+            // Switch back to login form
+            showSignup.value = false;
+            // Pre-fill email
+            email.value = signupEmail.value;
+        } else {
+            // Navigate immediately - toast will remain visible
+            router.push('/');
+        }
+
+        // Reset signup form
+        signupName.value = '';
+        signupEmail.value = '';
+        signupPassword.value = '';
+        confirmPassword.value = '';
+    }
+    // Success and error toasts are handled automatically by API service
+};
+
+// Toggle between login and signup
+const toggleSignup = () => {
+    showSignup.value = !showSignup.value;
+    // Clear any errors when switching
+    authStore.clearError();
+};
 </script>
 
 <template>
@@ -32,29 +127,62 @@ const checked = ref(false);
                             </g>
                         </svg>
                         <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Welcome to PrimeLand!</div>
-                        <span class="text-muted-color font-medium">Sign in to continue</span>
+                        <span class="text-muted-color font-medium">{{ showSignup ? 'Create your account' : 'Sign in to continue' }}</span>
                     </div>
 
-                    <div>
-                        <label for="email1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
-                        <InputText id="email1" type="text" placeholder="Email address" class="w-full md:w-[30rem] mb-8" v-model="email" />
+                    <!-- Login Form -->
+                    <div v-if="!showSignup">
+                        <form @submit.prevent="handleLogin">
+                            <label for="email1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
+                            <InputText id="email1" type="email" placeholder="Email address" class="w-full md:w-[30rem] mb-8" v-model="email" required />
 
-                        <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
-                        <Password id="password1" v-model="password" placeholder="Password" :toggleMask="true" class="mb-4" fluid :feedback="false"></Password>
+                            <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
+                            <Password id="password1" v-model="password" placeholder="Password" :toggleMask="true" class="mb-4" fluid :feedback="false" required></Password>
 
-                        <div class="flex items-center justify-between mt-2 mb-8 gap-8">
-                            <div class="flex items-center">
-                                <Checkbox v-model="checked" id="rememberme1" binary class="mr-2"></Checkbox>
-                                <label for="rememberme1">Remember me</label>
+                            <div class="flex items-center justify-between mt-2 mb-8 gap-8">
+                                <div class="flex items-center">
+                                    <Checkbox v-model="checked" id="rememberme1" binary class="mr-2"></Checkbox>
+                                    <label for="rememberme1">Remember me</label>
+                                </div>
+                                <span class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Forgot password?</span>
                             </div>
-                            <span class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Forgot password?</span>
+                            <Button type="submit" label="Sign In" class="w-full mb-4" :loading="authStore.isLoading" :disabled="authStore.isLoading" />
+                        </form>
+
+                        <div class="text-center">
+                            <span class="text-muted-color">Don't have an account? </span>
+                            <button @click="toggleSignup" class="font-medium no-underline cursor-pointer text-primary hover:underline">Sign up here</button>
                         </div>
-                        <Button label="Sign In" class="w-full" as="router-link" to="/"></Button>
+                    </div>
+
+                    <!-- Signup Form -->
+                    <div v-else>
+                        <form @submit.prevent="handleSignup">
+                            <label for="signupName" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Full Name</label>
+                            <InputText id="signupName" type="text" placeholder="Enter your full name" class="w-full md:w-[30rem] mb-6" v-model="signupName" required />
+
+                            <label for="signupEmail" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
+                            <InputText id="signupEmail" type="email" placeholder="Email address" class="w-full md:w-[30rem] mb-6" v-model="signupEmail" required />
+
+                            <label for="signupPassword" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
+                            <Password id="signupPassword" v-model="signupPassword" placeholder="Password" :toggleMask="true" class="mb-6" fluid required></Password>
+
+                            <label for="confirmPassword" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Confirm Password</label>
+                            <Password id="confirmPassword" v-model="confirmPassword" placeholder="Confirm Password" :toggleMask="true" class="mb-8" fluid :feedback="false" required></Password>
+
+                            <Button type="submit" label="Create Account" class="w-full mb-4" :loading="authStore.isLoading" :disabled="authStore.isLoading" />
+                        </form>
+
+                        <div class="text-center">
+                            <span class="text-muted-color">Already have an account? </span>
+                            <button @click="toggleSignup" class="font-medium no-underline cursor-pointer text-primary hover:underline">Sign in here</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <Toast position="bottom-left" />
 </template>
 
 <style scoped>

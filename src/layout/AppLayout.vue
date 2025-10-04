@@ -1,6 +1,6 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppFooter from './AppFooter.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
@@ -53,6 +53,32 @@ function isOutsideClicked(event) {
 
     return !(sidebarEl.isSameNode(event.target) || sidebarEl.contains(event.target) || topbarEl.isSameNode(event.target) || topbarEl.contains(event.target));
 }
+
+// RTL overlay positioning fix using MutationObserver
+onMounted(() => {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1 && node.classList && node.classList.contains('p-component')) {
+                    if (document.documentElement.getAttribute('dir') === 'rtl') {
+                        const overlay = node;
+                        const startValue = overlay.style.insetInlineStart;
+                        if (startValue) {
+                            overlay.style.insetInlineEnd = startValue;
+                            overlay.style.insetInlineStart = 'auto';
+                        }
+                    }
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    onBeforeUnmount(() => {
+        observer.disconnect();
+    });
+});
 </script>
 
 <template>
@@ -67,5 +93,5 @@ function isOutsideClicked(event) {
         </div>
         <div class="layout-mask animate-fadein"></div>
     </div>
-    <Toast />
+    <Toast position="bottom-left" />
 </template>

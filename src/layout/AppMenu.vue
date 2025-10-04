@@ -1,37 +1,42 @@
 <script setup>
-import { ref } from 'vue';
+import { useAuthStore } from '@/store/auth.js';
+import { computed, ref } from 'vue';
 
 import AppMenuItem from './AppMenuItem.vue';
 
-const model = ref([
+const authStore = useAuthStore();
+
+// Define all possible menu items
+const allMenuItems = ref([
     {
         label: 'Home',
         items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
     },
     {
-        label: 'UI Components',
+        label: 'Human Resources',
+        icon: 'pi pi-fw pi-users',
         items: [
-            { label: 'Form Layout', icon: 'pi pi-fw pi-id-card', to: '/uikit/formlayout' },
-            { label: 'Input', icon: 'pi pi-fw pi-check-square', to: '/uikit/input' },
-            { label: 'Button', icon: 'pi pi-fw pi-mobile', to: '/uikit/button', class: 'rotated-icon' },
-            { label: 'Table', icon: 'pi pi-fw pi-table', to: '/uikit/table' },
-            { label: 'List', icon: 'pi pi-fw pi-list', to: '/uikit/list' },
-            { label: 'Tree', icon: 'pi pi-fw pi-share-alt', to: '/uikit/tree' },
-            { label: 'Panel', icon: 'pi pi-fw pi-tablet', to: '/uikit/panel' },
-            { label: 'Overlay', icon: 'pi pi-fw pi-clone', to: '/uikit/overlay' },
-            { label: 'Media', icon: 'pi pi-fw pi-image', to: '/uikit/media' },
-            { label: 'Menu', icon: 'pi pi-fw pi-bars', to: '/uikit/menu' },
-            { label: 'Message', icon: 'pi pi-fw pi-comment', to: '/uikit/message' },
-            { label: 'File', icon: 'pi pi-fw pi-file', to: '/uikit/file' },
-            { label: 'Chart', icon: 'pi pi-fw pi-chart-bar', to: '/uikit/charts' },
-            { label: 'Timeline', icon: 'pi pi-fw pi-calendar', to: '/uikit/timeline' },
-            { label: 'Misc', icon: 'pi pi-fw pi-circle', to: '/uikit/misc' }
+            {
+                label: 'Work Groups',
+                icon: 'pi pi-fw pi-sitemap',
+                to: '/hr/work-groups'
+            }
         ]
     },
     {
-        label: 'Pages',
-        icon: 'pi pi-fw pi-briefcase',
-        to: '/pages',
+        label: 'Marketing',
+        icon: 'pi pi-fw pi-megaphone',
+        items: [
+            {
+                label: 'Marketing Employees',
+                icon: 'pi pi-fw pi-users',
+                to: '/marketing/employees'
+            }
+        ]
+    },
+    {
+        label: 'All Pages',
+        icon: 'pi pi-fw pi-th-large',
         items: [
             {
                 label: 'Landing',
@@ -39,7 +44,12 @@ const model = ref([
                 to: '/landing'
             },
             {
-                label: 'Auth',
+                label: 'Documentation',
+                icon: 'pi pi-fw pi-book',
+                to: '/documentation'
+            },
+            {
+                label: 'Auth Pages',
                 icon: 'pi pi-fw pi-user',
                 items: [
                     {
@@ -60,7 +70,7 @@ const model = ref([
                 ]
             },
             {
-                label: 'Crud',
+                label: 'CRUD',
                 icon: 'pi pi-fw pi-pencil',
                 to: '/pages/crud'
             },
@@ -75,68 +85,48 @@ const model = ref([
                 to: '/pages/empty'
             }
         ]
-    },
-    {
-        label: 'Hierarchy',
-        items: [
-            {
-                label: 'Submenu 1',
-                icon: 'pi pi-fw pi-bookmark',
-                items: [
-                    {
-                        label: 'Submenu 1.1',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [
-                            { label: 'Submenu 1.1.1', icon: 'pi pi-fw pi-bookmark' },
-                            { label: 'Submenu 1.1.2', icon: 'pi pi-fw pi-bookmark' },
-                            { label: 'Submenu 1.1.3', icon: 'pi pi-fw pi-bookmark' }
-                        ]
-                    },
-                    {
-                        label: 'Submenu 1.2',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [{ label: 'Submenu 1.2.1', icon: 'pi pi-fw pi-bookmark' }]
-                    }
-                ]
-            },
-            {
-                label: 'Submenu 2',
-                icon: 'pi pi-fw pi-bookmark',
-                items: [
-                    {
-                        label: 'Submenu 2.1',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [
-                            { label: 'Submenu 2.1.1', icon: 'pi pi-fw pi-bookmark' },
-                            { label: 'Submenu 2.1.2', icon: 'pi pi-fw pi-bookmark' }
-                        ]
-                    },
-                    {
-                        label: 'Submenu 2.2',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [{ label: 'Submenu 2.2.1', icon: 'pi pi-fw pi-bookmark' }]
-                    }
-                ]
-            }
-        ]
-    },
-    {
-        label: 'Get Started',
-        items: [
-            {
-                label: 'Documentation',
-                icon: 'pi pi-fw pi-book',
-                to: '/documentation'
-            },
-            {
-                label: 'View Source',
-                icon: 'pi pi-fw pi-github',
-                url: 'https://github.com/primefaces/sakai-vue',
-                target: '_blank'
-            }
-        ]
     }
 ]);
+
+// Computed property to filter menu items based on accessible pages
+const model = computed(() => {
+    if (!authStore.isAuthenticated || !authStore.accessiblePages.length) {
+        // If not authenticated or no accessible pages, show only Home and All Pages
+        return allMenuItems.value.filter((item) => item.label === 'Home' || item.label === 'All Pages');
+    }
+
+    return allMenuItems.value
+        .map((item) => {
+            if (item.label === 'Home' || item.label === 'All Pages') {
+                // Always show Home and All Pages
+                return item;
+            }
+
+            // Filter items based on accessible pages
+            const filteredItems = item.items?.filter((subItem) => {
+                if (subItem.to) {
+                    return authStore.hasAccessToPage(subItem.to);
+                }
+                if (subItem.items) {
+                    // Handle nested items (like Auth Pages)
+                    const filteredNestedItems = subItem.items.filter((nestedItem) => authStore.hasAccessToPage(nestedItem.to));
+                    return filteredNestedItems.length > 0;
+                }
+                return false;
+            });
+
+            // Only include the category if it has accessible items
+            if (filteredItems && filteredItems.length > 0) {
+                return {
+                    ...item,
+                    items: filteredItems
+                };
+            }
+
+            return null;
+        })
+        .filter((item) => item !== null);
+});
 </script>
 
 <template>

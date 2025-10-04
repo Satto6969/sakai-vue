@@ -7,11 +7,13 @@ const router = createRouter({
         {
             path: '/',
             component: AppLayout,
+            meta: { requiresAuth: true }, // Require authentication for all AppLayout routes
             children: [
                 {
                     path: '/',
                     name: 'dashboard',
-                    component: () => import('@/views/Dashboard.vue')
+                    component: () => import('@/views/Dashboard.vue'),
+                    meta: { requiresAuth: true }
                 },
                 {
                     path: '/uikit/formlayout',
@@ -103,6 +105,24 @@ const router = createRouter({
                     path: '/documentation',
                     name: 'documentation',
                     component: () => import('@/views/pages/Documentation.vue')
+                },
+                {
+                    path: '/profile',
+                    name: 'profile',
+                    component: () => import('@/views/pages/Profile.vue'),
+                    meta: { requiresAuth: true }
+                },
+                {
+                    path: '/hr/work-groups',
+                    name: 'workgroups',
+                    component: () => import('@/views/pages/hr/WorkGroups.vue'),
+                    meta: { requiresAuth: true }
+                },
+                {
+                    path: '/marketing/employees',
+                    name: 'marketingemployees',
+                    component: () => import('@/views/pages/marketing/MarketingEmployees.vue'),
+                    meta: { requiresAuth: true }
                 }
             ]
         },
@@ -133,6 +153,45 @@ const router = createRouter({
             component: () => import('@/views/pages/auth/Error.vue')
         }
     ]
+});
+
+// Authentication guard
+router.beforeEach(async (to, from, next) => {
+    // Import auth store (dynamic import to avoid circular dependency)
+    const { useAuthStore } = await import('@/store/auth.js');
+    const authStore = useAuthStore();
+
+    // Initialize auth state if not already done
+    if (!authStore.isInitialized) {
+        await authStore.initializeAuth();
+    }
+
+    // Check if route requires authentication
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+
+    if (requiresAuth && !authStore.isAuthenticated) {
+        // Redirect to login if not authenticated
+        console.log('🔒 Route requires auth, redirecting to login');
+        next({ name: 'login' });
+    } else if (to.name === 'login' && authStore.isAuthenticated) {
+        // Redirect to dashboard if already authenticated and trying to access login
+        console.log('✅ Already authenticated, redirecting to dashboard');
+        next({ name: 'dashboard' });
+    } else if (requiresAuth && authStore.isAuthenticated) {
+        // Check if user has access to this specific page
+        const hasAccess = authStore.hasAccessToPage(to.path);
+
+        if (!hasAccess) {
+            console.log('🚫 User does not have access to:', to.path);
+            next({ name: 'accessDenied' });
+        } else {
+            // Allow navigation
+            next();
+        }
+    } else {
+        // Allow navigation for non-protected routes
+        next();
+    }
 });
 
 export default router;

@@ -1,8 +1,21 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
+import { useAuthStore } from '@/store/auth';
+import { useRouter } from 'vue-router';
 import AppConfigurator from './AppConfigurator.vue';
 
-const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
+const { toggleMenu, toggleDarkMode, isDarkTheme, toggleDirection, isRTL } = useLayout();
+const authStore = useAuthStore();
+const router = useRouter();
+
+const handleLogout = () => {
+    authStore.logout();
+    router.push({ name: 'login' });
+};
+
+const handleEditProfile = () => {
+    router.push({ name: 'profile' });
+};
 </script>
 
 <template>
@@ -36,6 +49,9 @@ const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
 
         <div class="layout-topbar-actions">
             <div class="layout-config-menu">
+                <Button class="layout-topbar-action" @click="toggleDirection" :title="isRTL ? 'Switch to LTR' : 'Switch to RTL'">
+                    <i :class="['pi', { 'pi-angle-right': !isRTL, 'pi-angle-left': isRTL }]"></i>
+                </Button>
                 <button type="button" class="layout-topbar-action" @click="toggleDarkMode">
                     <i :class="['pi', { 'pi-moon': isDarkTheme, 'pi-sun': !isDarkTheme }]"></i>
                 </button>
@@ -68,10 +84,41 @@ const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
                         <i class="pi pi-inbox"></i>
                         <span>Messages</span>
                     </button>
-                    <button type="button" class="layout-topbar-action">
-                        <i class="pi pi-user"></i>
-                        <span>Profile</span>
-                    </button>
+
+                    <!-- User Role Badge -->
+                    <div v-if="authStore.userRole" class="flex items-center px-3 py-1 bg-primary-100 dark:bg-primary-900 rounded-full">
+                        <span class="text-primary-700 dark:text-primary-100 font-semibold text-sm">{{ authStore.userRole }}</span>
+                    </div>
+
+                    <!-- User Menu -->
+                    <div class="relative">
+                        <button v-styleclass="{ selector: '@next', enterFromClass: 'hidden', enterActiveClass: 'animate-scalein', leaveToClass: 'hidden', leaveActiveClass: 'animate-fadeout', hideOnOutsideClick: true }" class="layout-topbar-action">
+                            <i class="pi pi-user"></i>
+                        </button>
+                        <div class="hidden absolute right-0 top-full mt-2 w-64 bg-surface-0 dark:bg-surface-900 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 z-50">
+                            <div class="p-4 border-b border-surface-200 dark:border-surface-700">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                                        <i class="pi pi-user text-primary-700 dark:text-primary-100"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-surface-900 dark:text-surface-0">{{ authStore.userName }}</div>
+                                        <div v-if="authStore.userRole" class="text-sm text-surface-600 dark:text-surface-400">{{ authStore.userRole }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-2">
+                                <button @click="handleEditProfile" class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-900 dark:text-surface-0 transition-colors">
+                                    <i class="pi pi-user-edit"></i>
+                                    <span>Edit Profile</span>
+                                </button>
+                                <button @click="handleLogout" class="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors">
+                                    <i class="pi pi-sign-out"></i>
+                                    <span>Logout</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
